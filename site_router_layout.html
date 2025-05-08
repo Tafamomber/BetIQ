@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BetIQ Navigation</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8f8f8;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #333;
+      color: white;
+      padding: 10px 20px;
+    }
+    nav .logo {
+      font-weight: bold;
+      font-size: 20px;
+    }
+    nav .links button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 14px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+    iframe {
+      width: 100%;
+      height: calc(100vh - 50px);
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">BetIQ</div>
+    <div class="links">
+      <button onclick="navigate('home')">Home</button>
+      <button onclick="navigate('dashboard')">Dashboard</button>
+      <button onclick="navigate('profile')">Profile</button>
+      <button onclick="navigate('admin')">Admin Panel</button>
+      <button onclick="navigate('auth')">Sign In/Up</button>
+      <button onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+  <iframe id="frame" src="home.html"></iframe>
+
+  <script>
+    function navigate(page) {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (page === 'dashboard' || page === 'profile') {
+        if (!user) return alert('Please sign in first.');
+      }
+      if (page === 'admin') {
+        if (!user || user.role !== 'admin') return alert('Admin access only.');
+      }
+      document.getElementById("frame").src = page + ".html";
+    }
+
+    function signOut() {
+      localStorage.removeItem("user");
+      alert("Signed out.");
+      navigate('auth');
+    }
+
+    // Redirect to homepage if already signed in
+    window.onload = () => {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user) document.getElementById("frame").src = 'home.html';
+    }
+  </script>
+</body>
+</html>

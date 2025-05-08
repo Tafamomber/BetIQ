@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BetIQ - Sports Betting Predictions</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8f8f8;
+    }
+    .top-bar, .bottom-banner {
+      background: #222;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    .top-bar button {
+      margin: 0 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .main-content {
+      display: flex;
+      flex-direction: row;
+    }
+    .sidebar {
+      width: 200px;
+      background: #333;
+      color: white;
+      padding: 20px;
+      height: 100vh;
+    }
+    .sidebar h3, .sidebar ul {
+      margin: 0;
+      padding: 0;
+    }
+    .sidebar ul {
+      list-style: none;
+    }
+    .sidebar ul li {
+      margin: 10px 0;
+      cursor: pointer;
+    }
+    .dashboard, .admin-panel, .sign-in, .profile-settings {
+      display: none;
+      padding: 20px;
+      width: 100%;
+    }
+    .active {
+      display: block;
+    }
+    #map {
+      height: 200px;
+      margin: 10px 0;
+    }
+    #heatmap {
+      background: #eee;
+      padding: 10px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    canvas {
+      max-width: 400px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <button onclick="navigate('dashboard')">Dashboard</button>
+    <button onclick="navigate('admin-panel')">Admin</button>
+    <button onclick="navigate('profile-settings')">Profile</button>
+    <button onclick="navigate('sign-in')">Sign In/Up</button>
+  </div>
+
+  <div class="main-content">
+    <div class="sidebar">
+      <h3>Leagues</h3>
+      <ul>
+        <li>NBA</li>
+        <li>NFL</li>
+        <li>MLB</li>
+        <li>NHL</li>
+      </ul>
+    </div>
+
+    <div id="dashboard" class="dashboard active">
+      <h2>Welcome to BetIQ</h2>
+      <p>Select a game to view predictions, stats, and analysis.</p>
+      <canvas id="miniChart"></canvas>
+      <div id="heatmap">Heatmap Placeholder: Travel/Fatigue/Performance</div>
+      <div id="map"></div>
+    </div>
+
+    <div id="admin-panel" class="admin-panel">
+      <h2>Admin Panel</h2>
+      <p>Manage users, games, and prediction algorithms here.</p>
+      <div id="admin-message"></div>
+    </div>
+
+    <div id="profile-settings" class="profile-settings">
+      <h2>Profile Settings</h2>
+      <label>Name: <input type="text" placeholder="Your name"></label><br>
+      <label>Email: <input type="email" placeholder="you@example.com"></label><br>
+      <button>Save</button>
+    </div>
+
+    <div id="sign-in" class="sign-in">
+      <h2>Sign In</h2>
+      <label>Email: <input type="email" id="email"></label><br>
+      <label>Password: <input type="password" id="password"></label><br>
+      <button onclick="signIn()">Sign In</button>
+      <p>Don't have an account? <a href="#" onclick="toggleSignUp(true)">Sign Up</a></p>
+
+      <div id="sign-up-form" class="hidden">
+        <h3>Create Account</h3>
+        <label>Email: <input type="email" id="new-email"></label><br>
+        <label>Password: <input type="password" id="new-password"></label><br>
+        <button onclick="signUp()">Create Account</button>
+        <p><a href="#" onclick="toggleSignUp(false)">Back to Sign In</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-banner">
+    &copy; 2025 BetIQ. All rights reserved.
+  </div>
+
+  <script>
+    let isAdmin = false;
+
+    function navigate(page) {
+      document.querySelectorAll('.dashboard, .admin-panel, .profile-settings, .sign-in')
+        .forEach(section => section.classList.remove('active'));
+      document.getElementById(page).classList.add('active');
+
+      if (page === 'admin-panel' && !isAdmin) {
+        document.getElementById('admin-message').innerText = 'Access Denied. Admins only.';
+      } else if (page === 'admin-panel') {
+        document.getElementById('admin-message').innerText = 'Welcome, Admin!';
+      }
+    }
+
+    function signIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      if (email === 'admin@betiq.com' && password === 'admin') {
+        isAdmin = true;
+        alert('Signed in as Admin');
+        navigate('dashboard');
+      } else {
+        alert('Signed in as User');
+        navigate('dashboard');
+      }
+    }
+
+    function signUp() {
+      alert('Account created successfully! You can now sign in.');
+      toggleSignUp(false);
+    }
+
+    function toggleSignUp(show) {
+      document.getElementById('sign-up-form').classList.toggle('hidden', !show);
+    }
+
+    const ctx = document.getElementById('miniChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        datasets: [{
+          label: 'Win Rate %',
+          data: [65, 59, 80, 81, 56],
+          borderColor: 'blue',
+          tension: 0.1
+        }]
+      }
+    });
+
+    const map = L.map('map').setView([39.5, -98.35], 4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+    L.marker([40.7128, -74.0060]).addTo(map).bindPopup('Game in New York');
+  </script>
+</body>
+</html>

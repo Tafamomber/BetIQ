@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BetIQ - Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .top-bar {
+      background: #222;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .top-bar .user-info {
+      font-weight: bold;
+    }
+    .top-bar .actions button {
+      margin-left: 10px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .layout {
+      display: flex;
+    }
+    .sidebar {
+      width: 200px;
+      background: #333;
+      color: white;
+      padding: 20px;
+    }
+    .sidebar li {
+      margin: 10px 0;
+      cursor: pointer;
+    }
+    .main {
+      flex: 1;
+      padding: 20px;
+    }
+    .game-card {
+      background: white;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid transparent;
+    }
+    .game-card.favorite {
+      border-color: #007bff;
+    }
+    .game-card button {
+      margin-left: 10px;
+      padding: 6px 8px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .modal, .overlay {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+    }
+    .overlay {
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+    }
+    .modal {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      top: 20%; left: 50%;
+      transform: translate(-50%, -20%);
+      width: 300px;
+    }
+    .confidence-fill {
+      height: 10px;
+      background: limegreen;
+      width: 0%;
+    }
+    .modal-footer {
+      margin-top: 15px;
+      text-align: center;
+    }
+    .modal-footer a {
+      text-decoration: none;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="user-info" id="userInfo">Not signed in</div>
+    <div class="actions">
+      <button onclick="goToProfile()">Profile</button>
+      <button onclick="goToAdmin()" id="adminBtn" style="display:none;">Admin Panel</button>
+      <button onclick="signOut()" id="signOutBtn" style="display:none;">Sign Out</button>
+      <button onclick="window.location.href='auth.html'" id="signInBtn">Sign In</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <h3>Leagues</h3>
+      <ul>
+        <li onclick="loadLeague('NBA')">NBA</li>
+        <li onclick="loadLeague('NFL')">NFL</li>
+        <li onclick="loadLeague('MLB')">MLB</li>
+      </ul>
+    </div>
+
+    <div class="main">
+      <h2 id="league-title">NBA Dashboard</h2>
+
+      <!-- Filters -->
+      <div style="margin-bottom: 20px; padding: 10px; background: #eee; border-radius: 8px;">
+        <label><strong>Min Confidence (%):</strong>
+          <input type="range" id="confidenceFilter" min="0" max="100" value="0" oninput="applyFilters()"/>
+          <span id="confidenceValue">0</span>%
+        </label>
+        <br/><br/>
+        <label><strong>Search Matchup:</strong>
+          <input type="text" id="searchFilter" placeholder="e.g. Lakers" oninput="applyFilters()" style="padding: 6px; width: 250px;" />
+        </label>
+      </div>
+
+      <div id="games">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="overlay" onclick="closeModal()"></div>
+  <div class="modal" id="modal">
+    <h3 id="matchup-title"></h3>
+    <p><strong>Prediction:</strong> <span id="prediction-text"></span></p>
+    <p><strong>Confidence:</strong></p>
+    <div class="confidence-fill" id="confidence-fill"></div>
+    <p><strong>Details:</strong></p>
+    <ul id="details-list"></ul>
+    <div class="modal-footer">
+      <a href="profile.html">Go to Profile</a>
+    </div>
+    <button onclick="closeModal()">Close</button>
+  </div>
+
+  <script>
+    let allGames = [];
+    let currentUser = JSON.parse(localStorage.getItem("betiqUser"));
+    let favoriteTeams = [];
+
+    function loadFavorites() {
+      if (!currentUser) return;
+      const favs = JSON.parse(localStorage.getItem(`favorites_${currentUser.email}`)) || [];
+      favoriteTeams = favs.map(f => f.toLowerCase());
+    }
+
+    async function loadLeague(league) {
+      document.getElementById("league-title").innerText = `${league} Dashboard`;
+      const container = document.getElementById("games");
+      container.innerHTML = "<p>Loading real odds...</p>";
+      allGames = [];
+
+      const sportKey = {
+        NBA: "basketball_nba",
+        NFL: "americanfootball_nfl",
+        MLB: "baseball_mlb"
+      }[league];
+
+      try {
+        const response = await fetch(
+          `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?regions=us&markets=spreads&oddsFormat=american&apiKey=4ff95e462539a36bd65aa7ff5fd7cd08`
+        );
+        const data = await response.json();
+
+        allGames = data.map(game => {
+          const teams = `${game.away_team} vs ${game.home_team}`;
+          const outcomes = game.bookmakers?.[0]?.markets?.[0]?.outcomes || [];
+          return {
+            matchup: teams,
+            prediction: outcomes[0]?.name || "Unknown",
+            confidence: Math.floor(Math.random() * 20) + 60,
+            details: outcomes.map(o => `${o.name}: ${o.price}`),
+            timestamp: Date.now()
+          };
+        });
+
+        applyFilters();
+      } catch (err) {
+        console.error("API failed, using mock data.");
+        renderMockData(league);
+      }
+    }
+
+    function renderMockData(league) {
+      const mock = {
+        NBA: [
+          { matchup: "Lakers vs Celtics", prediction: "Lakers", confidence: 74, details: ["Mock stat 1", "Mock stat 2"], timestamp: Date.now() },
+          { matchup: "Knicks vs Heat", prediction: "Heat", confidence: 63, details: ["Mock stat 3", "Mock stat 4"], timestamp: Date.now() }
+        ],
+        NFL: [ { matchup: "Bengals vs Browns", prediction: "Bengals", confidence: 70, details: ["Fallback example"], timestamp: Date.now() } ],
+        MLB: []
+      };
+      allGames = mock[league] || [];
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const minConfidence = parseInt(document.getElementById("confidenceFilter").value);
+      const keyword = document.getElementById("searchFilter").value.toLowerCase();
+      document.getElementById("confidenceValue").innerText = minConfidence;
+
+      const filtered = allGames.filter(game =>
+        game.confidence >= minConfidence &&
+        game.matchup.toLowerCase().includes(keyword)
+      );
+
+      document.getElementById("games").innerHTML = filtered.length
+        ? filtered.map(g => {
+            const isFavorite = favoriteTeams.some(team =>
+              g.matchup.toLowerCase().includes(team)
+            );
+            return `
+              <div class="game-card ${isFavorite ? 'favorite' : ''}">
+                <div onclick='showModal(${JSON.stringify(g)})'>
+                  <strong>${g.matchup}</strong><br>
+                  ${g.confidence}% Confidence
+                </div>
+                ${currentUser ? `<button onclick='savePick(${JSON.stringify(g)})'>Save</button>` : ""}
+              </div>`;
+          }).join("")
+        : "<p>No games match your filters.</p>";
+    }
+
+    function showModal(game) {
+      document.getElementById("matchup-title").innerText = game.matchup;
+      document.getElementById("prediction-text").innerText = game.prediction;
+      document.getElementById("confidence-fill").style.width = `${game.confidence}%`;
+      document.getElementById("details-list").innerHTML = game.details.map(d => `<li>${d}</li>`).join('');
+      document.querySelector(".overlay").style.display = "block";
+      document.getElementById("modal").style.display = "block";
+    }
+
+    function closeModal() {
+      document.querySelector(".overlay").style.display = "none";
+      document.getElementById("modal").style.display = "none";
+    }
+
+    function savePick(game) {
+      if (!currentUser) {
+        alert("Please sign in to save picks.");
+        return;
+      }
+      const key = `picks_${currentUser.email}`;
+      const saved = JSON.parse(localStorage.getItem(key)) || [];
+      saved.push({ ...game, timestamp: Date.now() });
+      localStorage.setItem(key, JSON.stringify(saved));
+      alert("Pick saved!");
+    }
+
+    function signOut() {
+      localStorage.removeItem("betiqUser");
+      window.location.reload();
+    }
+
+    function goToAdmin() {
+      window.location.href = "admin.html";
+    }
+
+    function goToProfile() {
+      window.location.href = "profile.html";
+    }
+
+    function checkSession() {
+      if (!currentUser) return;
+      document.getElementById("userInfo").innerText = `Signed in as ${currentUser.name}`;
+      document.getElementById("signOutBtn").style.display = "inline-block";
+      document.getElementById("signInBtn").style.display = "none";
+      if (currentUser.role === "admin") {
+        document.getElementById("adminBtn").style.display = "inline-block";
+      }
+    }
+
+    checkSession();
+    loadFavorites();
+    loadLeague("NBA");
+  </script>
+</body>
+</html>

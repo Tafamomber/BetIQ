@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BetIQ - Profile</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    .pick {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pick button {
+      padding: 6px 10px;
+      border: none;
+      background: #c0392b;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #chart-container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-top: 30px;
+    }
+    #favorites {
+      margin-bottom: 20px;
+    }
+    button.save {
+      background: #007bff;
+      color: white;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Your Saved Picks</h2>
+  <div id="favorites">
+    <label><strong>Favorite Teams (comma-separated):</strong></label><br>
+    <input type="text" id="favInput" style="width: 300px; padding: 6px;">
+    <button class="save" onclick="saveFavorites()">Save Favorites</button>
+  </div>
+
+  <div id="picksList">Loading...</div>
+
+  <div id="chart-container">
+    <h3>Confidence Over Time</h3>
+    <canvas id="confidenceChart"></canvas>
+  </div>
+
+  <br><br>
+  <a href="index.html">← Back to Dashboard</a>
+
+  <script>
+    const user = JSON.parse(localStorage.getItem("betiqUser"));
+    const picksList = document.getElementById("picksList");
+    const chartCanvas = document.getElementById("confidenceChart");
+    const favInput = document.getElementById("favInput");
+
+    if (!user) {
+      picksList.innerHTML = "<p>Please sign in to view your saved picks.</p>";
+    } else {
+      const picksKey = `picks_${user.email}`;
+      const savedPicks = JSON.parse(localStorage.getItem(picksKey)) || [];
+
+      // Load favorites
+      const favKey = `favorites_${user.email}`;
+      const favorites = JSON.parse(localStorage.getItem(favKey)) || [];
+      favInput.value = favorites.join(", ");
+
+      // Display picks
+      if (!savedPicks.length) {
+        picksList.innerHTML = "<p>You have no saved picks.</p>";
+      } else {
+        picksList.innerHTML = savedPicks.map((pick, index) => `
+          <div class="pick">
+            <div>
+              <strong>${pick.matchup}</strong><br>
+              Prediction: ${pick.prediction}<br>
+              Confidence: ${pick.confidence}%<br>
+              Time: ${pick.timestamp ? new Date(pick.timestamp).toLocaleString() : "N/A"}
+            </div>
+            <button onclick="removePick(${index})">Remove</button>
+          </div>
+        `).join('');
+      }
+
+      // Chart
+      const labels = savedPicks.map(p => new Date(p.timestamp || Date.now()).toLocaleDateString());
+      const values = savedPicks.map(p => p.confidence);
+      new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Confidence %',
+            data: values,
+            borderColor: '#007bff',
+            fill: false,
+            tension: 0.2
+          }]
+        }
+      });
+    }
+
+    function removePick(index) {
+      const picks = JSON.parse(localStorage.getItem(`picks_${user.email}`)) || [];
+      picks.splice(index, 1);
+      localStorage.setItem(`picks_${user.email}`, JSON.stringify(picks));
+      location.reload();
+    }
+
+    function saveFavorites() {
+      const favs = favInput.value.split(",").map(f => f.trim()).filter(f => f);
+      localStorage.setItem(`favorites_${user.email}`, JSON.stringify(favs));
+      alert("Favorites saved!");
+    }
+  </script>
+</body>
+</html>

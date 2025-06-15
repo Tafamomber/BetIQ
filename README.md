@@ -41,5 +41,5 @@ future_plans:
   - Build a backend with user authentication
   - Visual charts and betting history
 
-contributing: >
+contributing: 
   Contributions are welcome. Fork the repo and open a pull request.

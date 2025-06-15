@@ -1,6 +1,6 @@
 project:
   name: BetIQ
-  description: >
+  description: 
     BetIQ is a smart, data-driven sports prediction platform. 
     It combines real-time odds, injury reports, travel distances, win/loss streaks, 
     and public betting trends to generate confidence-based predictions and betting insights.
